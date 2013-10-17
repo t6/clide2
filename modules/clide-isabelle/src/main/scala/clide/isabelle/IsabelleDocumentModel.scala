@@ -14,8 +14,9 @@ import isabelle.Exn
 import isabelle.Session
 import isabelle.Text
 import isabelle.Thy_Header
+import isabelle.Thy_Load
 
-class IsabelleDocumentModel(server: ActorRef, project: ProjectInfo, session: Session) extends DocumentModel(server, project) {  
+class IsabelleDocumentModel(server: ActorRef, project: ProjectInfo, session: Session, thy_load: Thy_Load) extends DocumentModel(server, project) {  
   def nodeName = {
     val name = file.path.mkString("/")
     Thy_Header.thy_name(name).map { theory =>
@@ -23,50 +24,25 @@ class IsabelleDocumentModel(server: ActorRef, project: ProjectInfo, session: Ses
     }
   }.get
   
-  def nodeHeader = 
+  def nodeHeader: isabelle.Document.Node_Header = 
     Exn.capture {      
-      session.thy_load.check_thy_text(nodeName, state)
-    } match {
-      case Exn.Res(header) => header
-      case Exn.Exn(exn) => Document.Node.bad_header(Exn.message(exn))
+      val name = nodeName
+      thy_load.check_header(name, thy_load.read_header(name))
     }
- 
-  var overlays = Document.Node.Overlays.empty
   
-  def insertOverlay(command: isabelle.Command, fn: String, args: List[String]) = {
-    overlays = overlays.insert(command, fn, args)
-  }
+  val perspective = Text.Perspective.full
   
-  def removeOverlay(command: isabelle.Command, fn: String, args: List[String]) = {
-    overlays = overlays.remove(command, fn, args)
-  }
-       
-  def perspective: Document.Node.Perspective_Text = {
-    Document.Node.Perspective(true, Text.Perspective.full, overlays)
-  }
-    
-  def initEdits: List[(Document.Node.Name,Document.Node.Edit[Text.Edit,Text.Perspective])] = {
-    val name = nodeName
-    List(session.header_edit(name, nodeHeader),
-         name -> Document.Node.Clear(),
-         name -> Document.Node.Edits(List(Text.Edit.insert(0,state))),
-         name -> perspective)
-  }
-  
-  def opToEdits(operation: Operation): List[Document.Edit_Text] = {    
-    val name = nodeName
+  def opToEdits(operation: Operation): List[Text.Edit] = {        
     val (_,edits) = operation.actions.foldLeft((0,Nil : List[Text.Edit])) { 
       case ((i,edits),Retain(n)) => (i+n,edits)
       case ((i,edits),Delete(n)) => (i+n,Text.Edit.remove(i,Seq.fill(n)('-').mkString) :: edits)
       case ((i,edits),Insert(s)) => (i+s.length,Text.Edit.insert(i,s) :: edits)
-    }
-    List(session.header_edit(name, nodeHeader),
-      name -> Document.Node.Edits(edits.reverse), // TODO: reverse needed??
-      name -> perspective)
+    }    
+    edits
   }
   
   def annotate: List[(String,Annotations)] = {
-    List("highlighting"  -> IsabelleMarkup.highlighting(nodeHeader,session.snapshot(nodeName,Nil)),
+    List("highlighting"  -> IsabelleMarkup.highlighting(session.snapshot(nodeName,Nil)),
          "substitutions" -> IsabelleMarkup.substitutions(state))
   }
     
@@ -74,12 +50,12 @@ class IsabelleDocumentModel(server: ActorRef, project: ProjectInfo, session: Ses
   def changed(op: Operation) {
     val edits = opToEdits(op)
     log.info("sending edits: {}", edits)
-    session.update(edits)    
+    session.edit_node(nodeName, nodeHeader, perspective, edits)    
   }
   
   def initialize() {
     log.info("name: {}, header: {}", nodeName, nodeHeader)
-    session.update(initEdits)
+    session.init_node(nodeName, nodeHeader, perspective, state)
     session.commands_changed += { change =>
       log.info("commands changed: {}", change)
       self ! DocumentModel.Refresh
