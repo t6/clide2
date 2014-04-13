@@ -34,7 +34,7 @@ import scalajs.sbtplugin.ScalaJSPlugin._
 
 
 object ApplicationBuild extends Build {
-  val v = "2.0-SNAPSHOT"
+  val v = "2.0-" + Process("git rev-parse HEAD").lines.head.slice(0, 8)
 
   override def rootProject = Some(web)
 
@@ -56,16 +56,16 @@ object ApplicationBuild extends Build {
 
   val commonSettings = sonatypeSettings ++ Seq(
     version := v,
-    organization := "net.flatmap",
-    organizationName := "flatmap",
-    organizationHomepage := Some(url("http://www.flatmap.net")),
+    organization := "t6",
+    organizationName := "t6",
+    organizationHomepage := Some(url("http://github.com/t6")),
     parallelExecution in Test := false,
     startYear := Some(2012),
     licenses := Seq("GNU Lesser General Public License" -> url("http://www.gnu.org/licenses/lgpl.html")),
     homepage := Some(url("http://clide.flatmap.net")),
     scmInfo := Some(ScmInfo(
-      browseUrl = url("https://github.com/martinring/clide2"),
-      connection = "scm:git:git@github.com:martinring/clide2.git")),
+      browseUrl = url("https://github.com/t6/clide2"),
+      connection = "scm:git:git@github.com:t6/clide2.git")),
     scalaVersion := scala.version,
     scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-unchecked", "-feature"))
 
