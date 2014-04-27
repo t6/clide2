@@ -32,7 +32,7 @@ define ['routes','util/actorSocket','collaboration/Operation','collaboration/Cod
       talkback: null
       kicked: null
       inline:
-        output: false
+        output: true
         errors: true
         warnings: true
       fileStates: { }
