@@ -263,6 +263,7 @@ private[actors] class FileActor(project: ProjectInfo, parent: FileInfo, name: St
               case "md"     => Some("text/x-markdown")
               case "sql"    => Some("text/x-sql")
               case "txt"    => Some("text/plain")
+              case "clj"    => Some("text/x-clojure")
               case _        => None
             },
             deleted = false,
